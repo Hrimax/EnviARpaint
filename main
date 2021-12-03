@@ -1,34 +1,53 @@
-
 import cv2
 import numpy as np
 import time
 import os
 import HandTrackingModule as htm
 
-#######################
-brushThickness = 25
-eraserThickness = 100
-########################
+
+def distance(ax,ay,bx,by):
+    dist = int(((((ax - bx) ** 2) + ((ay - by) ** 2)) ** 0.5))
+    if dist<0:
+        dist = -dist
+    return dist
+
+def ntg(x):
+    pass
 
 
+brushThickness = 5
+eraserThickness = 150
 folderPath = "Header"
 myList = os.listdir(folderPath)
-print(myList)
-overlayList = &#91;]
+# print(myList)
+overlayList = []
 for imPath in myList:
     image = cv2.imread(f'{folderPath}/{imPath}')
     overlayList.append(image)
-print(len(overlayList))
-header = overlayList&#91;0]
-drawColor = (255, 0, 255)
+# print(len(overlayList))
+header = overlayList[0]
+BrushColor = (1, 1, 1)
+shape = 'freestyle'
 
-cap = cv2.VideoCapture(1)
-cap.set(3, 1280)
-cap.set(4, 720)
-
-detector = htm.handDetector(detectionCon=0.65,maxHands=1)
+detector = htm.HandDetector(detectioncon=0.5,trackingcon=0.5,maxhands=1)
 xp, yp = 0, 0
 imgCanvas = np.zeros((720, 1280, 3), np.uint8)
+
+# Create a black image, a window
+imgc = np.zeros((250, 500, 3), np.uint8)
+cv2.namedWindow('color')
+cv2.resizeWindow('color', 450, 200)
+
+# create trackbars for color change
+cv2.createTrackbar('R', 'color', 1, 254, ntg)
+cv2.createTrackbar('G', 'color', 1, 254, ntg)
+cv2.createTrackbar('B', 'color', 1, 254, ntg)
+######## done
+
+
+cap = cv2.VideoCapture(0)
+cap.set(3, 1280)
+cap.set(4, 720)
 
 while True:
 
@@ -37,77 +56,137 @@ while True:
     img = cv2.flip(img, 1)
 
     # 2. Find Hand Landmarks
-    img = detector.findHands(img)
-    lmList = detector.findPosition(img, draw=False)
+    img = detector.FindHands(img)
+    lmList = detector.FindPosition(img)
+
+
+    ########values from trackbar
+    r = cv2.getTrackbarPos('R', 'color')
+    g = cv2.getTrackbarPos('G', 'color')
+    b = cv2.getTrackbarPos('B', 'color')
+
+    imgc[:] = [b, g, r]
+    ########
+
+
 
     if len(lmList) != 0:
-
         # print(lmList)
 
-        # tip of index and middle fingers
-        x1, y1 = lmList&#91;8]&#91;1:]
-        x2, y2 = lmList&#91;12]&#91;1:]
-
+        # tip of Thumb,index,middle fingers
+        x0, y0 = lmList[4][1:]
+        x1, y1 = lmList[8][1:]
+        x2, y2 = lmList[12][1:]
         # 3. Check which fingers are up
-        fingers = detector.fingersUp()
-        # print(fingers)
+        Up = detector.FingersUp()
+
 
         # 4. If Selection Mode - Two finger are up
-        if fingers&#91;1] and fingers&#91;2]:
-            # xp, yp = 0, 0
-            print("Selection Mode")
-            # # Checking for the click
-            if y1 &lt; 125:
-                if 250 &lt; x1 &lt; 450:
-                    header = overlayList&#91;0]
-                    drawColor = (255, 0, 255)
-                elif 550 &lt; x1 &lt; 750:
-                    header = overlayList&#91;1]
-                    drawColor = (255, 0, 0)
-                elif 800 &lt; x1 &lt; 950:
-                    header = overlayList&#91;2]
-                    drawColor = (0, 255, 0)
-                elif 1050 &lt; x1 &lt; 1200:
-                    header = overlayList&#91;3]
-                    drawColor = (0, 0, 0)
-            cv2.rectangle(img, (x1, y1 - 25), (x2, y2 + 25), drawColor, cv2.FILLED)
+        if Up[1] and Up[2] :
+            xp, yp = 0, 0
+            if y1 < 120:
 
-        # 5. If Drawing Mode - Index finger is up
-        if fingers&#91;1] and fingers&#91;2] == False:
-            cv2.circle(img, (x1, y1), 15, drawColor, cv2.FILLED)
-            print("Drawing Mode")
+                if 0 < x1 < 190:
+                    shape='SHAASTRA OP!!'
+                if 190 < x1 < 408:
+                    header = overlayList[0]
+                    BrushColor = (b,g,r)
+                    shape = 'Free Hand'
+                elif 408 < x1 < 626:
+                    header = overlayList[0]
+                    BrushColor = (b,g,r)
+                    shape = 'line'
+                elif 626 < x1 < 848:
+                    header = overlayList[0]
+                    BrushColor = (b,g,r)
+                    shape = 'circle'
+                elif 848 < x1 < 1062:
+                    header = overlayList[0]
+                    BrushColor = (b,g,r)
+                    shape = 'rectangle'
+                elif 1062 < x1 < 1200:
+                    header = overlayList[0]
+                    BrushColor = (0,0,0)
+                    shape = 'eraser'
+
+
+            cv2.rectangle(img, (x1, y1 - 25), (x2, y2 + 25), BrushColor, cv2.FILLED)
+        if Up[1] and Up[2] == False:
+            cv2.circle(img, (x1, y1), 15, BrushColor)
             if xp == 0 and yp == 0:
                 xp, yp = x1, y1
 
-            cv2.line(img, (xp, yp), (x1, y1), drawColor, brushThickness)
+            cv2.line(img, (xp, yp), (x1, y1), BrushColor, brushThickness)
 
-            # if drawColor == (0, 0, 0):
-            #     cv2.line(img, (xp, yp), (x1, y1), drawColor, eraserThickness)
-            #     cv2.line(imgCanvas, (xp, yp), (x1, y1), drawColor, eraserThickness)
-            #
-            # else:
-            #     cv2.line(img, (xp, yp), (x1, y1), drawColor, brushThickness)
-            #     cv2.line(imgCanvas, (xp, yp), (x1, y1), drawColor, brushThickness)
+            if BrushColor == (0, 0, 0):
+                eraserThickness = 50
+                zx, zy = lmList[4][1:]
+                result = distance(zx,zy,x1,y1)
+                if result < 0:
+                    result = -1 * result
+                u = result
+                if Up[1] and Up[4]:
+                    eraserThickness = u
+                cv2.circle(img, (x1, y1), u, BrushColor, cv2.FILLED)
+                cv2.circle(imgCanvas, (x1, y1), u, BrushColor, cv2.FILLED)
+
+            else:
+                brushThickness = 5
+
+                # draw
+                if shape == 'Free Hand':
+                    #zx, zy = lmList[4][1:]
+                    cv2.line(imgCanvas, (xp, yp), (x1, y1), BrushColor, brushThickness)
+                    cv2.line(img, (xp, yp), (x1, y1), BrushColor, brushThickness)
+
+                # Rectangle
+                if shape == 'rectangle':
+                    zx, zy = lmList[4][1:]
+                    result = distance(zx,zy,x1,y1)
+                    if result < 0:
+                        result = -1 * result
+                    u = result
+                    cv2.rectangle(img, (x0, y0), (x1, y1), BrushColor,2)
+                    if Up[4]:
+                        cv2.rectangle(imgCanvas, (x0, y0), (x1, y1), BrushColor)
+
+
+                # Circle
+                if shape == 'circle':
+                    zx, zy = lmList[4][1:]
+                    result = distance(zx,zy,x1,y1)
+                    if result < 0:
+                        result = -1 * result
+                    u = result
+                    cv2.circle(img, (x0, y0), u, BrushColor)
+                    if Up[4]:
+                        cv2.circle(imgCanvas, (x0, y0), u, BrushColor)
 
             xp, yp = x1, y1
 
-
-        # # Clear Canvas when all fingers are up
-        # if all (x >= 1 for x in fingers):
-        #     imgCanvas = np.zeros((720, 1280, 3), np.uint8)
+        # Clear Canvas when 2 fingers are up
+        if Up[2] and Up[3] and Up[0] == 0 and Up[1] == 0 and Up[4] == 0:
+            imgCanvas = np.zeros((720, 1280, 3), np.uint8)
 
     imgGray = cv2.cvtColor(imgCanvas, cv2.COLOR_BGR2GRAY)
     _, imgInv = cv2.threshold(imgGray, 50, 255, cv2.THRESH_BINARY_INV)
-    imgInv = cv2.cvtColor(imgInv,cv2.COLOR_GRAY2BGR)
-    img = cv2.bitwise_and(img,imgInv)
-    img = cv2.bitwise_or(img,imgCanvas)
+    imgInv = cv2.cvtColor(imgInv, cv2.COLOR_GRAY2BGR)
+    img = cv2.bitwise_and(img, imgInv)
+    img = cv2.bitwise_or(img, imgCanvas)
+
+    cv2.rectangle(img, (1200,640), (1240,680), (b, g, r), 40)
+
+    # choose color
+    cv2.imshow('color', imgc)
 
 
-    # Setting the header image
-    img&#91;0:125, 0:1280] = header
-    # img = cv2.addWeighted(img,0.5,imgCanvas,0.5,0)
+    img[0:120, 0:1280] = header
+    cv2.putText(img, shape, (900, 700), cv2.FONT_HERSHEY_PLAIN, 3,
+                (1, 251, 251), 3)
+
     cv2.imshow("Image", img)
-    cv2.imshow("Canvas", imgCanvas)
-    cv2.imshow("Inv", imgInv)
-    cv2.waitKey(1)
-
+    # cv2.imshow("Canvas", imgCanvas)
+    # cv2.imshow("Inv", imgInv)
+    k = cv2.waitKey(1) & 0xFF
+    if k == 27:
+        break
