@@ -5,6 +5,7 @@ import os
 import HandTrackingModule as htm
 from tkinter import *
 from tkinter import filedialog
+from tkinter import colorchooser
 #from PIL import ImageTk,Image
 
 
@@ -48,16 +49,20 @@ root.filename = filedialog.askopenfilename(initialdir="D:/extras/ARp images",tit
 
 # Create a black image, a window
 imgc = np.zeros((250, 500, 3), np.uint8)
-cv2.namedWindow('color')
-cv2.resizeWindow('color', 450, 200)
+#cv2.namedWindow('color')
+#cv2.resizeWindow('color', 450, 200)
 cv2.namedWindow('Transparency')
 cv2.resizeWindow('Transparency', 650,50)
 
 # create trackbars for color change
-cv2.createTrackbar('R', 'color', 1, 254, ntg)
-cv2.createTrackbar('G', 'color', 1, 254, ntg)
-cv2.createTrackbar('B', 'color', 1, 254, ntg)
+#cv2.createTrackbar('R', 'color', 1, 254, ntg)
+#cv2.createTrackbar('G', 'color', 1, 254, ntg)
+#cv2.createTrackbar('B', 'color', 1, 254, ntg)
 cv2.createTrackbar('Factor','Transparency',0,100,ntg)
+colors=colorchooser.askcolor(title='Choose Colour')
+r=colors[0][0]
+g=colors[0][1]
+b=colors[0][2]
 ######## done
 
 
@@ -80,9 +85,9 @@ while True:
 
 
     ########values from trackbar
-    r = cv2.getTrackbarPos('R', 'color')
-    g = cv2.getTrackbarPos('G', 'color')
-    b = cv2.getTrackbarPos('B', 'color')
+    #r = cv2.getTrackbarPos('R', 'color')
+    #g = cv2.getTrackbarPos('G', 'color')
+    #b = cv2.getTrackbarPos('B', 'color')
     transp=cv2.getTrackbarPos('Factor','Transparency')
 
     imgc[:] = [b, g, r]
@@ -213,7 +218,7 @@ while True:
     cv2.rectangle(imgbgr, (1200, 640), (1240, 680), (b, g, r), 40)
 
     # choose color
-    cv2.imshow('color', imgc)
+    #cv2.imshow('color', imgc)
     a=transp/100
     b=1-a
 
