@@ -1,0 +1,272 @@
+import cv2
+import numpy as np
+import time
+import os
+import HandTrackingModule as htm
+from tkinter import *
+from tkinter import filedialog
+#from PIL import ImageTk,Image
+import tensorflow as tf
+from gtts import gTTS
+import keras
+import cv2
+from keras.preprocessing import image
+import matplotlib.pyplot as plt
+from tkinter import colorchooser
+import pyttsx3
+
+def distance(ax, ay, bx, by):
+    dist = int(((((ax - bx) ** 2) + ((ay - by) ** 2)) ** 0.5))
+    if dist < 0:
+        dist = -dist
+    return dist
+
+
+def ntg(x):
+    pass
+
+
+newmodel = tf.keras.models.load_model("keras.h5")
+#newmodel.summary()
+f = open("class_names.txt", "r")
+# And for reading use
+class_names = f.readlines()
+f.close()
+
+img_Color = (255, 255, 255)
+canva_Color = (255, 26, 26)
+
+shape = 'Greetings'
+test = False
+thick = 4
+t = 460
+xp, yp = 0, 0
+
+folderPath = "Header"
+myList = os.listdir(folderPath)
+# print(myList)
+overlayList = []
+for imPath in myList:
+    imagee = cv2.imread(f'{folderPath}/{imPath}')
+    overlayList.append(imagee)
+header = overlayList[0]
+
+detector = htm.HandDetector(maxHands=1, detectionCon=0.6, trackCon=0.6)
+imgCanvas = np.zeros((720, 1280, 3), np.uint8)
+
+root=Tk()
+root.filename = filedialog.askopenfilename(initialdir="C:/Users/Manaswini Jella/Pictures",title='Select a background image')
+
+# Create a black image, a window
+imgc = np.zeros((250, 500, 3), np.uint8)
+# cv2.namedWindow('color')
+# cv2.resizeWindow('color', 450, 200)
+cv2.namedWindow('Transparency')
+cv2.resizeWindow('Transparency', 650,50)
+
+# create trackbars for color change
+# cv2.createTrackbar('R', 'color', 1, 254, ntg)
+# cv2.createTrackbar('G', 'color', 1, 254, ntg)
+# cv2.createTrackbar('B', 'color', 1, 254, ntg)
+cv2.createTrackbar('Factor','Transparency',0,100,ntg)
+colors = colorchooser.askcolor(title='Choose Colour')
+r = colors[0][0]
+g = colors[0][1]
+b = colors[0][2]
+######## done
+
+cap = cv2.VideoCapture(0)
+cap.set(3, 1280)
+cap.set(4, 720)
+
+while True:
+
+    # 1. Import image
+    success, img = cap.read()
+    img = cv2.flip(img, 1)
+    imgbgr = cv2.imread(root.filename, 1)
+
+    # 2. Find Hand Landmarks
+    img = detector.FindHands(img)
+    lmList = detector.FindPosition(img)
+
+
+    ########values from trackbar
+    # r = cv2.getTrackbarPos('R', 'color')
+    # g = cv2.getTrackbarPos('G', 'color')
+    # b = cv2.getTrackbarPos('B', 'color')
+    transp = cv2.getTrackbarPos('Factor', 'Transparency')
+
+    # imgc[:] = [b, g, r]
+    ########
+    img_Color = (b, g, r)
+    canva_Color = (b, g, r)
+    cv2.rectangle(img, (400, 200), (800, 600), (b, g, r), 5)
+    cv2.rectangle(imgbgr, (400, 200), (800, 600), (b, g, r), 5)
+    cv2.rectangle(imgCanvas, (400, 200), (800, 600), (b, g, r), 5)
+    if len(lmList) != 0:
+        # print(lmList)
+
+        # tip of Thumb,index,middle fingers
+        x0, y0 = lmList[4][1:]
+        x1, y1 = lmList[8][1:]
+        x2, y2 = lmList[12][1:]
+
+        # 3. Check which fingers are up
+        Up = detector.FingersUp()
+
+        # Clear Canvas when 2 fingers are up
+        if Up[0] == 1 and Up[1] == 1 and Up[2] == 0 and Up[3] == 0 and Up[4] == 1:
+            imgCanvas = np.zeros((720, 1280, 3), np.uint8)
+
+        k = cv2.waitKey(1) & 0xFF
+        if k == 27:
+            break
+
+        # 4. If Selection Mode - Two finger are up
+        if Up[1] and Up[2]:
+            xp, yp = 0, 0
+            if y1 < 120:
+                if 0 < x1 < 190:
+                    shape = 'SHAASTRA OP!!'
+                if 190 < x1 < 408:
+                    shape = 'Free Hand'
+                elif 408 < x1 < 626:
+                    shape = 'Line'
+                elif 626 < x1 < 848:
+                    shape = 'Circle'
+                elif 848 < x1 < 1062:
+                    shape = 'Rectangle'
+                elif 1062 < x1 < 1200:
+                    shape = 'Eraser'
+
+            cv2.rectangle(img, (x1, y1 - 25), (x2, y2 + 25), img_Color, cv2.FILLED)
+            cv2.rectangle(imgbgr, (x1, y1 - 25), (x2, y2 + 25), img_Color, cv2.FILLED)
+
+        ######Brush Thickness
+        cv2.rectangle(img, (1160, 200), (1240, 520), img_Color, 2)
+        cv2.line(img, (1200, 220), (1200, 500), img_Color, 2)
+        if Up[1] and Up[2] and 1160 < x1 < 1240 and 220 < y1 < 490:
+            t = y1
+            cv2.rectangle(img, (1170, t - 10), (1230, t + 10), img_Color, 2)
+        else:
+            cv2.rectangle(img, (1170, t - 10), (1230, t + 10), img_Color, 2)
+        thick = int((530 - t) / 8)
+        # Done
+
+        if shape == 'Free Hand':
+            if Up[1] and Up[2] == 0:
+                cv2.line(imgCanvas, (xp, yp), (x1, y1), canva_Color, thickness=thick)
+                # cv2.line(img, (xp, yp), (x1, y1), img_Color, thickness=thick)
+        elif shape == 'SHAASTRA OP!!':
+
+            test_img = imgCanvas[205:595, 405:795]
+            sized = (28, 28)
+            cv2.imwrite("xzz.jpg", test_img)
+            test_img = cv2.resize(test_img, sized)
+            print(test_img.shape)
+            test_img = image.img_to_array(test_img)
+
+            test_img = test_img[:, :, 1].reshape(1, 28, 28, 1)
+            test_img = test_img / 255
+            pred = newmodel.predict(test_img)[0]
+            ind = (-pred).argsort()[:5]
+            latex = [class_names[x] for x in ind]
+            c=latex[0]
+            c=c.replace('_',' ')
+
+            text = pyttsx3.init()
+            text.say(c)
+            text.runAndWait()
+
+            print(latex[0])
+            shape='Free Hand'
+        elif shape == "Line":
+            x1, y1 = lmList[8][1:]
+            if Up[1] and Up[2] == 0 and Up[4] == 0:
+                if not test:
+                    xii, yii = x1, y1
+                    test = True
+
+                cv2.line(img, (xii, yii), (x1, y1), img_Color, thick)
+            else:
+                if test:
+                    cv2.line(imgCanvas, (xii, yii), (x1, y1), canva_Color, thick)
+                    test = False
+
+        elif shape == 'Rectangle':
+
+            if Up[1] and Up[2] == 0 and Up[4] == 0:
+                if not (test):
+                    xii, yii = x1, y1
+                    test = True
+                cv2.rectangle(img, (xii, yii), (x1, y1), img_Color, thick)
+
+            else:
+                if test:
+                    cv2.rectangle(imgCanvas, (xii, yii), (x1, y1), canva_Color, thick)
+                    test = False
+
+        elif shape == "Circle":
+            x1, y1 = lmList[8][1:]
+
+            if Up[1] and Up[2] == 0 and Up[4] == 0:
+                if not test:
+                    xii, yii = x1, y1
+                    test = True
+
+                cv2.circle(img, (xii, yii), distance(xii, yii, x1, y1), img_Color, thick)
+
+            else:
+                if test:
+                    cv2.circle(imgCanvas, (xii, yii), distance(xii, yii, x1, y1), canva_Color,
+                               thick)
+                    test = False
+
+        elif shape == 'Color':
+             time.sleep(2)
+             colors = colorchooser.askcolor(title='Choose Colour')
+             r = colors[0][0]
+             g = colors[0][1]
+             b = colors[0][2]
+             xp,yp = x1,y1
+             shape="Free Hand"
+
+        elif shape == "Eraser":
+            img_Color = (1, 1, 1)
+            r = distance(x1, y1, x0, y0)
+            if Up[2] == 0:
+                cv2.circle(img, (x1, y1), r, (1, 1, 1), cv2.FILLED)
+                cv2.circle(imgCanvas, (x1, y1), r, (1, 1, 1), cv2.FILLED)
+
+        xp, yp = x1, y1
+
+    imgGray = cv2.cvtColor(imgCanvas, cv2.COLOR_BGR2GRAY)
+    _, imgInv = cv2.threshold(imgGray, 50, 255, cv2.THRESH_BINARY_INV)
+    imgInv = cv2.cvtColor(imgInv, cv2.COLOR_GRAY2BGR)
+    img = cv2.bitwise_and(img, imgInv)
+    img = cv2.bitwise_or(img, imgCanvas)
+
+    cv2.rectangle(img, (1200, 640), (1240, 680), img_Color, 40)
+
+    cv2.putText(img, shape, (900, 700), cv2.FONT_HERSHEY_PLAIN, 3,
+                (1, 251,251), 3)
+    stm = f'{thick}'
+    cv2.putText(img, stm, (1185, 580), cv2.FONT_HERSHEY_PLAIN, 3,
+                (1, 251, 251), 3)
+
+
+    a = transp / 100
+    img[0:120, 0:1280] = header
+    imgz = cv2.addWeighted(img, 1-a, imgbgr, a, 0)
+    cv2.imshow("Tracer", imgz)
+    k = cv2.waitKey(1) & 0xFF
+    if k == 27:
+     break
+
+
+
+
+
+
+
