@@ -3,10 +3,10 @@ import numpy as np
 import os
 import HandTrackingModule as htm
 import time
-from time import sleep
 from tkinter import *
 from tkinter import filedialog
 from tkinter import colorchooser
+
 
 # function
 def distance(ax, ay, bx, by):
@@ -14,17 +14,10 @@ def distance(ax, ay, bx, by):
     if dist < 0:
         dist = -dist
     return dist
-def get_win(x):
-    if 1200 < x < 1260 and curr_win == "main":
-        return "shapes"
-    elif 1200 < x < 1260 and curr_win == "shapes":
-        return "trace"
-    elif 0 < x < 60 and curr_win == "shapes":
-        return "main"
-    elif 1200 < x < 1260 and curr_win == "trace":
-        return "shapes"
+
 def ntg(x):
     pass
+
 
 # intialisation
 img_Color = (255, 255, 255)
@@ -34,13 +27,12 @@ shape = "Free Hand"
 curr_win = "main"
 feature_1 = "color"
 feature_3 = "Transparency"
-time_init = True
-rad = 40
 test = False
 thick = 4
 transp = 1
-t = 220
+t = 490
 xp, yp = 0, 0
+a = 0
 
 # Background Images and icons
 folderPath = "icons"
@@ -51,17 +43,16 @@ for imPath in myList:
     overlayList.append(image)
 header = overlayList[0]
 
-detector = htm.HandDetector(detectioncon=0.6, trackingcon=0.6, maxhands=1)
-imgCanvas = np.zeros((720, 1280, 3), np.uint8)
-
-
-
-root =Tk()
-root.filename = filedialog.askopenfilename(initialdir="C:/Users/Manaswini Jella/Pictures",
-                                                       title='Select a background image')
 cap = cv2.VideoCapture(0)
 cap.set(3, 1280)
 cap.set(4, 720)
+
+detector = htm.HandDetector(detectioncon=0.6, trackingcon=0.6, maxhands=1)
+imgCanvas = np.zeros((720, 1280, 3), np.uint8)
+
+root = Tk()
+root.filename = filedialog.askopenfilename(initialdir="C:/Users/Manaswini Jella/Pictures",
+                                           title='Select a background image')
 
 while True:
     # 1.import img
@@ -84,6 +75,10 @@ while True:
         x0, y0 = lmList[4][1:]
         x1, y1 = lmList[8][1:]
         x2, y2 = lmList[12][1:]
+
+        # Clear Canvas when 2 fingers are up
+        if Up[0] == 1 and Up[1] == 1 and Up[2] == 0 and Up[3] == 0 and Up[4] == 1:
+            imgCanvas = np.zeros((720, 1280, 3), np.uint8)
 
         cv2.rectangle(img, (1200, 220), (1260, 320), img_Color)
         cv2.rectangle(img, (0, 220), (60, 320), img_Color)
@@ -163,7 +158,7 @@ while True:
 
         # 6.shapes
         # 6.1 Free Hand
-        if shape == "Free Hand" :
+        if shape == "Free Hand":
             if Up[1] and Up[2] == 0:
                 cv2.line(imgCanvas, (xp, yp), (x1, y1), canva_Color, thickness=thick)
         # 6.2 Line
@@ -207,7 +202,7 @@ while True:
 
         # 7.feature_3
         # 7.1 Transparency level
-        if feature_3 == "Transparency"and curr_win=="trace" :
+        if feature_3 == "Transparency" and curr_win == "trace":
             cv2.rectangle(img, (1160, 200), (1240, 520), img_Color, 2)
             cv2.line(img, (1200, 220), (1200, 500), img_Color, 2)
             if Up[1] and Up[2] and 1160 < x1 < 1240 and 220 < y1 < 490:
@@ -217,21 +212,21 @@ while True:
                 cv2.rectangle(img, (1170, t - 10), (1230, t + 10), img_Color, 2)
             transp = (490 - t) / 270
         # 7.2 Background Selection
-        if feature_3 == "Background" and curr_win=="trace":
+        if feature_3 == "Background" and curr_win == "trace":
             # root =Tk()
             root.filename = filedialog.askopenfilename(initialdir="C:/Users/Manaswini Jella/Pictures",
                                                        title='Select a background image')
             feature_3 = "Transparency"
 
-        if 220<y1<330 and Up[1] and Up[2]:
-            if 1200<x1<1260:
+        if 220 < y1 < 330 and Up[1] and Up[2]:
+            if 1200 < x1 < 1260:
                 if curr_win == "main":
                     curr_win = "shapes"
                     time.sleep(1)
                 elif curr_win == "shapes":
-                    curr_win="trace"
+                    curr_win = "trace"
 
-            if 0<x1<60:
+            if 0 < x1 < 60:
                 if curr_win == "trace":
                     curr_win = "shapes"
                     time.sleep(1)
@@ -249,26 +244,20 @@ while True:
 
     if curr_win == "main":
         header = overlayList[0]
-        a=1
-
     if curr_win == "shapes":
         header = overlayList[1]
-        a=1
     if curr_win == "trace":
         header = overlayList[2]
-        imgz = cv2.addWeighted(img, 1 - transp, imgbgr, a, 0)
-
-
 
     img[0:158, 0:1280] = header
     cv2.putText(img, curr_win, (1150, 680), cv2.FONT_ITALIC, 1, (0, 0, 0))
-    if curr_win=="trace":
-        a=transp
+    if curr_win == "trace":
+        a = transp
         imgz = cv2.addWeighted(img, 1 - a, imgbgr, a, 0)
-        cv2.imshow("trace",imgz)
+        cv2.imshow("Paint Your World!!", imgz)
     else:
-        cv2.imshow("Paint Your World!!", img)
-
+        imgz = cv2.addWeighted(img, 1, imgbgr, 0, 0)
+        cv2.imshow("Paint Your World!!", imgz)
     k = cv2.waitKey(1) & 0xFF
     if k == 27:
         break
@@ -293,3 +282,4 @@ while True:
         # 7.1 Background Selection
         # 7.2 Transparency level
 '''
+
