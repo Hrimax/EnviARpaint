@@ -1,0 +1,295 @@
+import cv2
+import numpy as np
+import os
+import HandTrackingModule as htm
+import time
+from time import sleep
+from tkinter import *
+from tkinter import filedialog
+from tkinter import colorchooser
+
+# function
+def distance(ax, ay, bx, by):
+    dist = int(((((ax - bx) ** 2) + ((ay - by) ** 2)) ** 0.5))
+    if dist < 0:
+        dist = -dist
+    return dist
+def get_win(x):
+    if 1200 < x < 1260 and curr_win == "main":
+        return "shapes"
+    elif 1200 < x < 1260 and curr_win == "shapes":
+        return "trace"
+    elif 0 < x < 60 and curr_win == "shapes":
+        return "main"
+    elif 1200 < x < 1260 and curr_win == "trace":
+        return "shapes"
+def ntg(x):
+    pass
+
+# intialisation
+img_Color = (255, 255, 255)
+canva_Color = (255, 255, 255)
+b, g, r = 255, 255, 255
+shape = "Free Hand"
+curr_win = "main"
+feature_1 = "color"
+feature_3 = "Transparency"
+time_init = True
+rad = 40
+test = False
+thick = 4
+transp = 1
+t = 220
+xp, yp = 0, 0
+
+# Background Images and icons
+folderPath = "icons"
+myList = os.listdir(folderPath)
+overlayList = []
+for imPath in myList:
+    image = cv2.imread(f'{folderPath}/{imPath}')
+    overlayList.append(image)
+header = overlayList[0]
+
+detector = htm.HandDetector(detectioncon=0.6, trackingcon=0.6, maxhands=1)
+imgCanvas = np.zeros((720, 1280, 3), np.uint8)
+
+
+
+root =Tk()
+root.filename = filedialog.askopenfilename(initialdir="C:/Users/Manaswini Jella/Pictures",
+                                                       title='Select a background image')
+cap = cv2.VideoCapture(0)
+cap.set(3, 1280)
+cap.set(4, 720)
+
+while True:
+    # 1.import img
+    success, img = cap.read()
+    img = cv2.flip(img, 1)
+    imgbgr = cv2.imread(root.filename, 1)
+
+    # 2.findlms
+    img = detector.FindHands(img)
+    lmList = detector.FindPosition(img)
+
+    img_Color = (b, g, r)
+    canva_Color = (b, g, r)
+
+    # 3.check which fingers up
+    if len(lmList) != 0:
+        Up = detector.FingersUp()
+
+        # tip of Thumb,index,middle fingers
+        x0, y0 = lmList[4][1:]
+        x1, y1 = lmList[8][1:]
+        x2, y2 = lmList[12][1:]
+
+        cv2.rectangle(img, (1200, 220), (1260, 320), img_Color)
+        cv2.rectangle(img, (0, 220), (60, 320), img_Color)
+
+        # 4.selection mode
+        if Up[1] and Up[2]:
+            xp, yp = 0, 0
+            if y1 < 120:
+                # 5. Feature_1
+                if curr_win == "main":
+                    header = overlayList[0]
+                    # 5.1 Color
+                    if 270 < x1 < 410:
+                        feature_1 = "Color"
+                    # 5.2 Thickness
+                    elif 474 < x1 < 608:
+                        feature_1 = "Thickness"
+                    # 5.3 Eraser
+                    elif 675 < x1 < 801:
+                        feature_1 = "Eraser"
+                        shape = "Eraser"
+                # 6.shapes
+                if curr_win == "shapes":
+                    header = overlayList[1]
+                    # 6.1 Free Hand
+                    if 190 < x1 < 408:
+                        shape = 'Free Hand'
+                    # 6.2 Line
+                    elif 408 < x1 < 626:
+                        shape = 'Line'
+                    # 6.3 Circle
+                    elif 626 < x1 < 848:
+                        shape = 'Circle'
+                    # 6.4 Rectangle
+                    elif 848 < x1 < 1062:
+                        shape = 'Rectangle'
+                    # 6.5 Square
+                    # 6.6 Triangle
+                # 7.feature_3
+                if curr_win == "trace":
+                    header = overlayList[2]
+                    # 7.1 Background Selection
+                    if 250 < x1 < 524:
+                        feature_3 = "Background"
+                    # 7.2 Transparency level
+                    if 565 < x1 < 838:
+                        feature_3 = "Transparency"
+                cv2.rectangle(img, (x1, y1 - 25), (x2, y2 + 25), img_Color, cv2.FILLED)
+
+        # 5. Feature_1
+        # 5.1 Color
+        if feature_1 == "Color":
+            colors = colorchooser.askcolor(title='Choose Colour')
+            r = colors[0][0]
+            g = colors[0][1]
+            b = colors[0][2]
+            xp, yp = x1, y1
+            feature_1 = ""
+            shape = "Free Hand"
+        # 5.2 Thickness
+        elif feature_1 == "Thickness":
+            cv2.rectangle(img, (1160, 200), (1240, 520), img_Color, 2)
+            cv2.line(img, (1200, 220), (1200, 500), img_Color, 2)
+            if Up[1] and Up[2] and 1160 < x1 < 1240 and 220 < y1 < 490:
+                t = y1
+                cv2.rectangle(img, (1170, t - 10), (1230, t + 10), img_Color, 2)
+            else:
+                cv2.rectangle(img, (1170, t - 10), (1230, t + 10), img_Color, 2)
+            thick = int((530 - t) / 8)
+        # 5.3 Eraser
+        elif shape == "Eraser":
+            img_Color = (1, 1, 1)
+            r = distance(x1, y1, x0, y0)
+            if Up[2] == 0:
+                cv2.circle(img, (x1, y1), r, (1, 1, 1), cv2.FILLED)
+                cv2.circle(imgCanvas, (x1, y1), r, (1, 1, 1), cv2.FILLED)
+
+        # 6.shapes
+        # 6.1 Free Hand
+        if shape == "Free Hand" :
+            if Up[1] and Up[2] == 0:
+                cv2.line(imgCanvas, (xp, yp), (x1, y1), canva_Color, thickness=thick)
+        # 6.2 Line
+        elif shape == "Line":
+            x1, y1 = lmList[8][1:]
+            if Up[1] and Up[2] == 0 and Up[4] == 0:
+                if not test:
+                    xii, yii = x1, y1
+                    test = True
+                cv2.line(img, (xii, yii), (x1, y1), img_Color, thick)
+            else:
+                if test:
+                    cv2.line(imgCanvas, (xii, yii), (x1, y1), canva_Color, thick)
+                    test = False
+        # 6.3 Circle
+        elif shape == "Circle":
+            x1, y1 = lmList[8][1:]
+            if Up[1] and Up[2] == 0 and Up[4] == 0:
+                if not test:
+                    xii, yii = x1, y1
+                    test = True
+                cv2.circle(img, (xii, yii), distance(xii, yii, x1, y1), img_Color, thick)
+            else:
+                if test:
+                    cv2.circle(imgCanvas, (xii, yii), distance(xii, yii, x1, y1), canva_Color,
+                               thick)
+                    test = False
+        # 6.4 Rectangle
+        elif shape == 'Rectangle':
+            if Up[1] and Up[2] == 0 and Up[4] == 0:
+                if not (test):
+                    xii, yii = x1, y1
+                    test = True
+                cv2.rectangle(img, (xii, yii), (x1, y1), img_Color, thick)
+            else:
+                if test:
+                    cv2.rectangle(imgCanvas, (xii, yii), (x1, y1), canva_Color, thick)
+                    test = False
+        # 6.5 Square
+        # 6.6 Triangle
+
+        # 7.feature_3
+        # 7.1 Transparency level
+        if feature_3 == "Transparency"and curr_win=="trace" :
+            cv2.rectangle(img, (1160, 200), (1240, 520), img_Color, 2)
+            cv2.line(img, (1200, 220), (1200, 500), img_Color, 2)
+            if Up[1] and Up[2] and 1160 < x1 < 1240 and 220 < y1 < 490:
+                t = y1
+                cv2.rectangle(img, (1170, t - 10), (1230, t + 10), img_Color, 2)
+            else:
+                cv2.rectangle(img, (1170, t - 10), (1230, t + 10), img_Color, 2)
+            transp = (490 - t) / 270
+        # 7.2 Background Selection
+        if feature_3 == "Background" and curr_win=="trace":
+            # root =Tk()
+            root.filename = filedialog.askopenfilename(initialdir="C:/Users/Manaswini Jella/Pictures",
+                                                       title='Select a background image')
+            feature_3 = "Transparency"
+
+        if 220<y1<330 and Up[1] and Up[2]:
+            if 1200<x1<1260:
+                if curr_win == "main":
+                    curr_win = "shapes"
+                    time.sleep(1)
+                elif curr_win == "shapes":
+                    curr_win="trace"
+
+            if 0<x1<60:
+                if curr_win == "trace":
+                    curr_win = "shapes"
+                    time.sleep(1)
+                elif curr_win == "shapes":
+                    curr_win = "main"
+
+        xp, yp = x1, y1
+
+    # 8. joining imgCanvas and img
+    imgGray = cv2.cvtColor(imgCanvas, cv2.COLOR_BGR2GRAY)
+    _, imgInv = cv2.threshold(imgGray, 50, 255, cv2.THRESH_BINARY_INV)
+    imgInv = cv2.cvtColor(imgInv, cv2.COLOR_GRAY2BGR)
+    img = cv2.bitwise_and(img, imgInv)
+    img = cv2.bitwise_or(img, imgCanvas)
+
+    if curr_win == "main":
+        header = overlayList[0]
+        a=1
+
+    if curr_win == "shapes":
+        header = overlayList[1]
+        a=1
+    if curr_win == "trace":
+        header = overlayList[2]
+        imgz = cv2.addWeighted(img, 1 - transp, imgbgr, a, 0)
+
+
+
+    img[0:158, 0:1280] = header
+    cv2.putText(img, curr_win, (1150, 680), cv2.FONT_ITALIC, 1, (0, 0, 0))
+    if curr_win=="trace":
+        a=transp
+        imgz = cv2.addWeighted(img, 1 - a, imgbgr, a, 0)
+        cv2.imshow("trace",imgz)
+    else:
+        cv2.imshow("Paint Your World!!", img)
+
+    k = cv2.waitKey(1) & 0xFF
+    if k == 27:
+        break
+
+'''
+# 1.import img
+# 2.findlms
+# 3.check which fingers up
+# 4.selection mode
+    # 5. Feature_1
+        # 5.1 Color
+        # 5.2 Thickness
+        # 5.3 Eraser
+    # 6.shapes
+        # 6.1 Free Hand
+        # 6.2 Line
+        # 6.3 Circle
+        # 6.4 Rectangle
+        # 6.5 Square
+        # 6.6 Triangle
+    # 7.feature_3
+        # 7.1 Background Selection
+        # 7.2 Transparency level
+'''
