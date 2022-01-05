@@ -1,0 +1,9 @@
+smiley_face
+sea_turtle
+rabbit
+bee
+butterfly
+cell phone
+drums
+duck
+eraser
