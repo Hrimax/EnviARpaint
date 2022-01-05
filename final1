@@ -7,11 +7,8 @@ from tkinter import *
 from tkinter import filedialog
 from tkinter import colorchooser
 from HandTrackingModule import Key
-from pynput.keyboard import Controller
 from datetime import datetime
-import matplotlib.pyplot as plt
 import tensorflow as tf
-import keras
 from keras.preprocessing import image
 import pyttsx3
 
@@ -22,17 +19,6 @@ def distance(ax, ay, bx, by):
     if dist < 0:
         dist = -dist
     return dist
-
-
-def get_win(x):
-    if 1200 < x < 1260 and curr_win == "main":
-        return "shapes"
-    elif 1200 < x < 1260 and curr_win == "shapes":
-        return "trace"
-    elif 0 < x < 60 and curr_win == "shapes":
-        return "main"
-    elif 1200 < x < 1260 and curr_win == "trace":
-        return "shapes"
 
 
 def ntg(x):
@@ -128,7 +114,6 @@ mousX, mousY = 0, 0
 show = False
 counter = 0
 previousClick = 0
-keyboard = Controller()
 
 root = Tk()
 root.filename = filedialog.askopenfilename(initialdir="C:/Users/Manaswini Jella/Pictures",
@@ -372,8 +357,6 @@ while True:
                                     textBox.text += " "
                                 else:
                                     textBox.text += k.text
-                                    # simulating the press of actual keyboard
-                                    keyboard.press(k.text)
                             previousClick = clickTime
                 k.drawKey(img, (255, 255, 255), (0, 0, 0), alpha=alpha)
                 alpha = 0.5
@@ -472,7 +455,7 @@ while True:
     k = cv2.waitKey(1) & 0xFF
     if k == 27:
         break
-        
+
         
         
         
