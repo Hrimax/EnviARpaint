@@ -1,0 +1,493 @@
+import cv2
+import numpy as np
+import os
+import HandTrackingModule as htm
+import time
+from tkinter import *
+from tkinter import filedialog
+from tkinter import colorchooser
+from HandTrackingModule import Key
+from datetime import datetime
+
+# function
+def distance(ax, ay, bx, by):
+    dist = int(((((ax - bx) ** 2) + ((ay - by) ** 2)) ** 0.5))
+    if dist < 0:
+        dist = -dist
+    return dist
+
+
+def ntg(x):
+    pass
+
+
+# functions --Keyboard
+def getMousPos(event, x, y, flags, param):
+    global clickedX, clickedY
+    global mouseX, mouseY
+    if event == cv2.EVENT_LBUTTONUP:
+        # print(x,y)
+        clickedX, clickedY = x, y
+    if event == cv2.EVENT_MOUSEMOVE:
+        #     print(x,y)
+        mouseX, mouseY = x, y
+
+
+def calculateIntDidtance(pt1, pt2):
+    return int(((pt1[0] - pt2[0]) ** 2 + (pt1[1] - pt2[1]) ** 2) ** 0.5)
+
+
+# intialisation
+img_Color = (255, 255, 255)
+canva_Color = (255, 255, 255)
+b, g, r = 255, 255, 255
+shape = "Scribble"
+curr_win = "main"
+feature_1 = "color"
+feature_3 = "Transparency"
+time_init = True
+rad = 40
+test = False
+thick = 4
+transp = 0
+t = 490
+xp, yp = 0, 0
+a = 0
+detect = False
+Draw = False
+
+
+# Background Images and icons
+folderPath = "icons"
+myList = os.listdir(folderPath)
+overlayList = []
+for imPath in myList:
+    image1 = cv2.imread(f'{folderPath}/{imPath}')
+    overlayList.append(image1)
+left = overlayList[0]
+right = overlayList[1]
+save = overlayList[2]
+header = overlayList[3]
+tkeyboard = overlayList[6]
+
+img_i = overlayList[1]
+
+cap = cv2.VideoCapture(0)
+cap.set(3, 1280)
+cap.set(4, 720)
+
+detector = htm.HandDetector(detectioncon=0.6, trackingcon=0.6, maxhands=1)
+imgCanvas = np.zeros((720, 1280, 3), np.uint8)
+
+# Keyboard
+# Creating keys
+w, h = 110, 80
+startX, startY = 90, 250
+keys = []
+letters = list("QWERTYUIOPASDFGHJKLZXCVBNM")
+caps = True
+for i, l in enumerate(letters):
+    if i < 10:
+        keys.append(Key(startX + i * w + i * 5, startY, w, h, l))
+    elif i < 19:
+        keys.append(Key(startX + (i - 10) * w + i * 5, startY + h + 5, w, h, l))
+    else:
+        keys.append(Key(startX + (i - 19) * w + i * 5, startY + 2 * h + 10, w, h, l))
+
+
+keys.append(Key(startX, startY + 3 * h + 15, 5 * w, h, "Space"))
+keys.append(Key(startX + 8 * w + 50, startY + 2 * h + 10, w, h, "Clear"))
+keys.append(Key(startX + 5 * w + 30, startY + 3 * h + 15, 5 * w, h, "Back"))
+textBox = Key(startX, startY - h - 5, 10 * w + 9 * 5, h, '')
+ptime = 0
+
+# initiating the hand tracker
+clickedX, clickedY = 0, 0
+mousX, mousY = 0, 0
+show = False
+counter = 0
+previousClick = 0
+
+root = Tk()
+root.filename = filedialog.askopenfilename(initialdir="C:/Users/Manaswini Jella/Pictures",
+                                           title='Select a background image')
+
+while True:
+    # 1.import img
+    success, img = cap.read()
+    img = cv2.flip(img, 1)
+    imgbgr = cv2.imread(root.filename, 1)
+
+
+    # 2.findlms
+    img = detector.FindHands(img)
+    lmList = detector.FindPosition(img)
+
+    img_Color = (b, g, r)
+    canva_Color = (b, g, r)
+
+    # 3.check which fingers up
+    if len(lmList) != 0:
+        Up = detector.FingersUp()
+
+        # tip of Thumb,index,middle fingers
+        x0, y0 = lmList[4][1:]
+        x1, y1 = lmList[8][1:]
+        x2, y2 = lmList[12][1:]
+
+        cv2.circle(imgbgr,(x1,y1),3,(1,1,1),-1)
+        # Clear Canvas when 2 fingers are up
+        if Up[0] == 1 and Up[1] == 1 and Up[2] == 0 and Up[3] == 0 and Up[4] == 1:
+            imgCanvas = np.zeros((720, 1280, 3), np.uint8)
+
+        # 4.selection mode
+        if Up[1] and Up[2]:
+            xp, yp = 0, 0
+            if y1 < 120:
+                # 5. Feature_1
+                if curr_win == "main":
+                    header = overlayList[0]
+                    # 5.1 Color
+                    if 270 < x1 < 410:
+                        feature_1 = "Color"
+                    # 5.2 Thickness
+                    elif 474 < x1 < 608:
+                        feature_1 = "Thickness"
+                    # 5.3 Eraser
+                    elif 675 < x1 < 801:
+                        feature_1 = "Eraser"
+                        shape = "Eraser"
+                # 6.shapes
+                if curr_win == "shapes":
+                    header = overlayList[1]
+                    # # 6.1 Free Hand
+                    # if 270 < x1 < 360:
+                    #     shape = 'Scribble'
+                    # # 6.2 Line
+                    # elif 390 < x1 < 480:
+                    #     shape = 'Line'
+                    # # 6.3 Circle
+                    # elif 510 < x1 < 600:
+                    #     shape = 'Circle'
+                    # # 6.4 Rectangle
+                    # elif 630 < x1 < 720:
+                    #     shape = 'Rectangle'
+                    # # 6.5 Square
+                    # elif 750 < x1 < 840:
+                    #     shape = 'Copy'
+                    # # 6.6 Triangle
+                    # elif 860 < x1 < 950:
+                    #     shape = 'Images'
+                    # 6.1 Free Hand
+                    if 224 < x1 < 324:
+                        shape = 'Scribble'
+                    # 6.2 Line
+                    elif 340 < x1 < 440:
+                        shape = 'Line'
+                    # 6.3 Circle
+                    elif 465< x1 < 565:
+                        shape = 'Circle'
+                    # 6.4 Rectangle
+                    elif 590 < x1 < 690:
+                        shape = 'Rectangle'
+                    # 6.5 Copy Selected regio
+                    elif 715 < x1 < 815:
+                        shape = 'Copy'
+                    # 6.6 Copy Image from Computer
+                    elif 834 < x1 < 934:
+                        shape = 'Images'
+                # 7.feature_3
+                if curr_win == "trace":
+                    header = overlayList[2]
+                    # 7.1 Background Selection
+                    if 250 < x1 < 524:
+                        feature_3 = "Background"
+                    # 7.2 Transparency level
+                    if 565 < x1 < 838:
+                        feature_3 = "Transparency"
+                cv2.rectangle(img, (x1, y1 - 25), (x2, y2 + 25), img_Color, cv2.FILLED)
+            if 1200 < x1 < 1280 and 140 < y1 < 223:
+                shape = "save"
+            if 625 < y1 < 715 and 5 < x1 < 155:
+                shape = "Keyboard"
+                feature_1 = "Keyboard"
+                feature_3 = "Keyboard"
+            if 1150<x1<1210 and 620<y1<720:
+                feature = "Draw"
+                Draw =True
+            # cv2.rectangle(img,(1220,400),(1280,720),img_Color)
+            # cv2.rectangle(img, (1150, 620), (1210, 720), img_Color)
+        # 5. Feature_1
+        # 5.1 Color
+        if feature_1 == "Color":
+            colors = colorchooser.askcolor(title='Choose Colour')
+            r = colors[0][0]
+            g = colors[0][1]
+            b = colors[0][2]
+            xp, yp = x1, y1
+            feature_1 = ""
+            shape = "Scribble"
+        # 5.2 Thickness
+        elif feature_1 == "Thickness" and curr_win == "main":
+            Color = (1, 1, 1)
+            cv2.rectangle(img, (10, 200), (90, 520), Color, 2)
+            cv2.line(img, (50, 220), (50, 500), Color, 2)
+            if Up[1] and Up[2] and 10 < x1 < 90 and 220 < y1 < 490:
+                t = y1
+                cv2.rectangle(img, (20, t - 10), (80, t + 10), img_Color, 2)
+            else:
+                cv2.rectangle(img, (20, t - 10), (80, t + 10), img_Color, 2)
+            thick = int((530 - t) / 8)
+        # 5.3 Eraser
+        elif shape == "Eraser":
+            img_Color = (1, 1, 1)
+            r = distance(x1, y1, x0, y0)
+            if Up[2] == 0:
+                cv2.circle(img, (x1, y1), r, (1, 1, 1), cv2.FILLED)
+                cv2.circle(imgCanvas, (x1, y1), r, (1, 1, 1), cv2.FILLED)
+
+        # 6.shapes
+        # 6.1 Free Hand
+        if shape == "Scribble":
+            if Up[1] and Up[2] == 0:
+                cv2.line(imgCanvas, (xp, yp), (x1, y1), canva_Color, thickness=thick)
+        # 6.2 Line
+        elif shape == "Line":
+            x1, y1 = lmList[8][1:]
+            if Up[1] and Up[2] == 0 and Up[4] == 0:
+                if not test:
+                    xii, yii = x1, y1
+                    test = True
+                cv2.line(img, (xii, yii), (x1, y1), img_Color, thick)
+            else:
+                if test:
+                    cv2.line(imgCanvas, (xii, yii), (x1, y1), canva_Color, thick)
+                    test = False
+        # 6.3 Circle
+        elif shape == "Circle":
+            x1, y1 = lmList[8][1:]
+            if Up[1] and Up[2] == 0 and Up[4] == 0:
+                if not test:
+                    xii, yii = x1, y1
+                    test = True
+                cv2.circle(img, (xii, yii), distance(xii, yii, x1, y1), img_Color, thick)
+            else:
+                if test:
+                    cv2.circle(imgCanvas, (xii, yii), distance(xii, yii, x1, y1), canva_Color,
+                               thick)
+                    test = False
+        # 6.4 Rectangle
+        elif shape == 'Rectangle':
+            if Up[1] and Up[2] == 0 and Up[4] == 0:
+                if not (test):
+                    xii, yii = x1, y1
+                    test = True
+                cv2.rectangle(img, (xii, yii), (x1, y1), img_Color, thick)
+            else:
+                if test:
+                    cv2.rectangle(imgCanvas, (xii, yii), (x1, y1), canva_Color, thick)
+                    test = False
+
+        # 6.5 Copy
+        elif shape == 'Copy':
+            if Up[1] and Up[2] == 0:
+                if not (test):
+                    xii, yii = x1, y1
+                    test = True
+                cv2.rectangle(img, (xii, yii), (x1, y1), img_Color, thick)
+            else:
+                if test:
+                    cv2.rectangle(img, (xii, yii), (x1, y1), canva_Color)
+                    img1 = imgCanvas[yii:y1,xii:x1]
+                    shape = "Paste_c"
+                    ya = 1
+                    ox, oy = 0,0
+                    test = False
+        # 6.6 Copy_Images
+        elif shape == 'Images':
+            if Up[1] and Up[2] == 0:
+                if not (test):
+                    test = True
+                    root.filename1 = filedialog.askopenfilename(initialdir="C:/Users/Manaswini Jella/Pictures",
+                                                                title='Select Image')
+                    img_i = cv2.imread(root.filename1, 1)
+
+            else:
+                if test:
+                    shape = "Paste_i"
+                    ya = 1
+                    ox, oy = 0,0
+                    test = False
+
+        # 6.7 Paste copied stuff
+        elif shape=="Paste_c":
+            hm, wm, _ = img1.shape
+            try:
+                if Up[2] and Up[1] and Up[0]==0 and distance(x1,y1,x2,y2)<40:
+                    img[y1:y1 + hm, x1:x1 + wm] = img1
+                    if not (test):
+                        xii, yii = x1, y1
+                        test = True
+
+                elif Up[1] and Up[2]==0:
+                    if test:
+                        imgCanvas[y1:y1 + hm, x1:x1 + wm] = img1
+                        test = False
+            except:
+                pass
+        # 6.8 Paste_images
+        elif shape=="Paste_i":
+            hm, wm, _ = img_i.shape
+            try:
+                if Up[2] and Up[1] and Up[0]==0 and distance(x1,y1,x2,y2)<40:
+                    img[y1:y1 + hm, x1:x1 + wm] = img_i
+                    if not (test):
+                        xii, yii = x1, y1
+                        test = True
+                elif Up[1] and Up[2]==0:
+                    if test:
+                        imgCanvas[y1:y1 + hm, x1:x1 + wm] = img_i
+                        test = False
+            except:
+                pass
+
+        # 7.feature_3
+        # 7.1 Transparency level
+        if feature_3 == "Transparency" and curr_win == "trace":
+            Color = (1, 1, 1)
+            cv2.rectangle(img, (1160, 220), (1240, 540), Color, 2)
+            cv2.line(img, (1200, 240), (1200, 520), Color, 2)
+            if Up[1] and Up[2] and 1160 < x1 < 1240 and 240 < y1 < 510:
+                t = y1
+                cv2.rectangle(img, (1170, t - 10), (1230, t + 10), img_Color, 2)
+            else:
+                cv2.rectangle(img, (1170, t - 10), (1230, t + 10), img_Color, 2)
+            transp = (510 - t) / 270
+        # 7.2 Background Selection
+        elif feature_3 == "Background":
+            # root =Tk()
+            root.filename = filedialog.askopenfilename(initialdir="C:/Users/Manaswini Jella/Pictures",
+                                                       title='Select a background image')
+            feature_3 = "Transparency"
+
+        elif shape == "Keyboard" and feature_1 == "Keyboard" and feature_3 == "Keyboard":
+            if counter > 0:
+                counter -= 1
+
+            signTipX = 0
+            signTipY = 0
+
+            thumbTipX = 0
+            thumbTipY = 0
+
+            if not success:
+                break
+            if lmList:
+                signTipX, signTipY = x1, y1
+                thumbTipX, thumbTipY = x2, y2
+                if calculateIntDidtance((signTipX, signTipY), (thumbTipX, thumbTipY)) < 50:
+                    centerX = int((signTipX + thumbTipX) / 2)
+                    centerY = int((signTipY + thumbTipY) / 2)
+                    cv2.line(img, (signTipX, signTipY), (thumbTipX, thumbTipY), (0, 255, 0), 2)
+                    cv2.circle(img, (centerX, centerY), 5, (0, 255, 0), cv2.FILLED)
+
+            ctime = time.time()
+            fps = int(1 / (ctime - ptime))
+
+            # cv2.putText(img, str(fps) + " FPS", (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2)
+            cv2.setMouseCallback("Paint Your World!!", getMousPos)
+
+            alpha = 0.5
+
+            textBox.drawKey(img, (255, 255, 255), (0, 0, 0), 0.3)
+            for k in keys:
+                # if k.isOver(mouseX, mouseY) or k.isOver(signTipX, signTipY):
+                if k.isOver(signTipX, signTipY):
+                    alpha = 0.1
+                    # writing using fingers
+                    if (k.isOver(thumbTipX, thumbTipY)):
+                        clickTime = time.time()
+                        if clickTime - previousClick > 0.4:
+                            if k.text == 'Back':
+                                textBox.text = textBox.text[:-1]
+                            elif k.text == 'Clear':
+                                textBox.text = ''
+                            elif len(textBox.text) < 30:
+                                if k.text == 'Space':
+                                    textBox.text += " "
+                                else:
+                                    textBox.text += k.text
+                            previousClick = clickTime
+                k.drawKey(img, (255, 255, 255), (0, 0, 0), alpha=alpha)
+                alpha = 0.5
+            clickedX, clickedY = 0, 0
+            ptime = ctime
+        elif shape == "save":
+            test_img = img[120:720, 0:1280]
+            t = datetime.now().time()
+            seconds = (t.hour * 100 + t.minute) * 100 + t.second
+            uniq_filename = f'Drawing{seconds}.png'
+            cv2.imwrite(uniq_filename, test_img)
+            shape = "Scribble"
+            time.sleep(1)
+        cv2.putText(imgbgr, textBox.text, (30, 50), cv2.FONT_ITALIC,1, (255,255,255),thickness=2)
+
+
+        if 300 < y1 < 375 and Up[1] and Up[2]:
+            if 1200 < x1 < 1280:
+                if curr_win == "main":
+                    curr_win = "shapes"
+                    time.sleep(1)
+                elif curr_win == "shapes":
+                    curr_win = "trace"
+
+            if 0 < x1 < 80:
+                if curr_win == "trace":
+                    curr_win = "shapes"
+                    time.sleep(1)
+                elif curr_win == "shapes":
+                    curr_win = "main"
+
+        xp, yp = x1, y1
+
+    # 8. joining imgCanvas and img
+    imgGray = cv2.cvtColor(imgCanvas, cv2.COLOR_BGR2GRAY)
+    _, imgInv = cv2.threshold(imgGray, 50, 255, cv2.THRESH_BINARY_INV)
+    imgInv = cv2.cvtColor(imgInv, cv2.COLOR_GRAY2BGR)
+    img = cv2.bitwise_and(img, imgInv)
+    img = cv2.bitwise_or(img, imgCanvas)
+    imgbgr = cv2.bitwise_and(imgbgr, imgInv)
+    imgbgr = cv2.bitwise_or(imgbgr, imgCanvas)
+
+
+    if curr_win == "main":
+        header = overlayList[3]
+        # print(curr_win,feature_1)
+    if curr_win == "shapes":
+        header = overlayList[4]
+        cv2.putText(img, shape, (1150, 680), cv2.FONT_ITALIC, 1,(1,1,1),2)
+    if curr_win == "trace":
+        header = overlayList[5]
+        # print(curr_win, feature_3)
+
+
+    img[0:120, 0:1280] = header
+    # imgbgr[0:120, 0:1280] = header
+    img[150:223, 1200:1270] = save
+    img[625:715, 5:155] = tkeyboard
+    # print(curr_win, shape)
+    if curr_win == "trace" or curr_win == "shapes":
+        img[320:395, 5:80] = left
+    if curr_win == "main" or curr_win == "shapes":
+        img[320:395, 1200:1275] = right
+
+    a = transp
+    imgz = cv2.addWeighted(img, 1 - a, imgbgr, a, 0)
+
+
+    cv2.imshow("Paint Your World!!", imgz)
+
+    a = 1
+    k = cv2.waitKey(1) & 0xFF
+    if k == 27:
+        break
